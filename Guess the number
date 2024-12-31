@@ -153,9 +153,6 @@ void Game() {
                 cout << "Current attempts: " << attempts - 1 << endl;
             }
 
-            timer++;
-            attempts--;
-
             // If attempts == 0
             if (attempts == 0 && !number_guessed) {
                 SetColor(9);
@@ -168,6 +165,8 @@ void Game() {
                 if (!game_over) return; // Exit the Game function if the user does not want to play again
             }
         }
+        timer++;
+        attempts--;
     } while (game_over);
 }
 
