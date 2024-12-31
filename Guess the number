@@ -1,0 +1,180 @@
+#include <iostream>
+#include <vector>
+#include <ctime>
+#include <Windows.h>
+using namespace std;
+
+void ClearScreen() {
+    HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    DWORD count;
+    DWORD cellCount;
+    COORD homeCoords = { 0, 0 };
+    if (hStdOut == INVALID_HANDLE_VALUE) return;
+    if (!GetConsoleScreenBufferInfo(hStdOut, &csbi)) return;
+    cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+    if (!FillConsoleOutputCharacter(hStdOut, (TCHAR)' ', cellCount, homeCoords, &count)) return;
+    if (!FillConsoleOutputAttribute(hStdOut, csbi.wAttributes, cellCount, homeCoords, &count)) return;
+    SetConsoleCursorPosition(hStdOut, homeCoords);
+}
+
+void SetColor(int color) {
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    SetConsoleTextAttribute(hConsole, color);
+}
+
+void IWantToTryAgain(bool& flag) {
+    ClearScreen();
+    bool flag_is_not_correct;
+    cout << "Would you like to try guessing the number again? " << endl;
+    cout << "Type '1' if yes, or '0' if no (only 1 or 0)" << endl;
+    do {
+        flag_is_not_correct = false;
+        cin >> flag;
+        if (flag != 0 && flag != 1) {
+            cout << "Please enter a valid value, 1 for 'Yes' or 0 for 'No'" << endl;
+            flag_is_not_correct = true;
+        }
+    } while (flag_is_not_correct);
+    if (flag == 1) {
+        flag = true;
+    }
+    else {
+        flag = false;
+        cout << "Farewell!";
+    }
+}
+
+void GameWasWinned(string& str, bool game_over, int target) {
+    SetColor(9);
+    cout << "I'm sorry, but you lost! The correct number was: " << target << endl;
+    SetColor(4);
+    cout << "Text something to continue" << endl;
+    cin >> str;
+    SetColor(7);
+    IWantToTryAgain(game_over);
+}
+
+void Game() {
+    ClearScreen();
+    bool game_over = false;
+    bool number_guessed = false;
+    do {
+        string str;
+        int attempts = 3;
+        int number = 0;
+        int range = 0;
+        int target = 0;
+        int timer = 0;
+        unsigned int distance = 0;
+        bool out_of_range_user_number = false;
+        bool correct_range = false;
+        vector<int> attempts_array;
+
+        // Limit
+        cout << "Enter the upper limit for the guessed number (from 1 to... (minimum range 10!)): " << endl;
+        do {
+            cin >> range;
+            if (range < 10) {
+                cout << "Upper limit must be at least 10!" << endl;
+                cout << "Please enter the limit again (minimum 10)" << endl;
+                correct_range = false;
+            }
+            else {
+                correct_range = true;
+            }
+        } while (!correct_range);
+
+        // Initialization of the guessed number
+        srand(static_cast<unsigned int>(time(0)) + rand());
+        target = rand() % range + 1;
+
+        // Lets check the number!
+        while (attempts != 0) {
+            cout << "Enter the number you believe was guessed (from 1 to " << range << "): " << endl;
+            for (size_t k = 0; k < 3; k++) {
+                if (attempts_array.empty()) {
+                    break;
+                }
+                else {
+                    cout << "Your " << k + 1 << " number: " << attempts_array[k] << endl;
+                }
+            }
+            do {
+                cin >> number;
+                if (number >= 1 && number <= range && range >= 10) {
+                    out_of_range_user_number = false;
+                }
+                else {
+                    cout << "Your number is out of bounds (1 - your set boundary)" << endl;
+                    cout << "Your upper limit: " << range << endl;
+                    cout << "Please, enter the correct number (from 1 to " << range << ")" << endl;
+                    out_of_range_user_number = true;
+                }
+            } while (out_of_range_user_number);
+
+            distance = abs(target - number);
+
+            // If the first try was correct
+            if (number == target && timer == 0) {
+                number_guessed = true;
+                SetColor(9);
+                cout << "Wow, you guessed the secret number on the first try!" << endl;
+                GameWasWinned(str, game_over, target);
+                if (!game_over) return; // Exit the Game function if the user does not want to play again
+            }
+            // If the first try was not correct, but still correct
+            else if (number == target && timer != 0) {
+                number_guessed = true;
+                SetColor(9);
+                cout << "Congratulations, the number is guessed!" << endl;
+                GameWasWinned(str, game_over, target);
+                if (!game_over) return; // Exit the Game function if the user does not want to play again
+            }
+            // Hints if the user didn't guess the number
+            else if (distance < 5) {
+                cout << "You are 5 steps away from the goal (possibly) XD" << endl;
+                cout << "Current attempts: " << attempts - 1 << endl;
+            }
+            else if (distance >= 5 && distance < 15) {
+                cout << "You are 5-15 steps away from your goal" << endl;
+                cout << "Current attempts: " << attempts - 1 << endl;
+            }
+            else if (distance >= 15 && distance < 35) {
+                cout << "You are 15-35 steps away from your goal" << endl;
+                cout << "Current attempts: " << attempts - 1 << endl;
+            }
+            else if (distance >= 35 && distance < 80) {
+                cout << "You are a crazy 35 - 80 steps away from your goal!" << endl;
+                cout << "Current attempts: " << attempts - 1 << endl;
+            }
+            else if (distance >= 80) {
+                cout << "Too far, my friend, you are more than 80 steps away from your goal!" << endl;
+                cout << "Current attempts: " << attempts - 1 << endl;
+            }
+
+            timer++;
+            attempts--;
+
+            // If attempts == 0
+            if (attempts == 0 && !number_guessed) {
+                SetColor(9);
+                cout << "I'm sorry, but you lost! The correct number was: " << target << endl;
+                SetColor(4);
+                cout << "Text something to continue" << endl;
+                cin >> str;
+                SetColor(7);
+                IWantToTryAgain(game_over);
+                if (!game_over) return; // Exit the Game function if the user does not want to play again
+            }
+        }
+    } while (game_over);
+}
+
+int main() {
+    // Initialization
+    setlocale(LC_ALL, "ru");
+    srand(static_cast<unsigned int>(time(0)));
+    Game();
+    return 0;
+}
