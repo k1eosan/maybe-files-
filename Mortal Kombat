@@ -1,0 +1,311 @@
+#include <iostream>
+#include <random>
+#include <vector>
+#include <conio.h>
+#include <windows.h>
+using namespace std;
+
+struct Character {
+public:
+	string name;
+	int hp;
+	int attack;
+	Character(string n, int h, int a) : name(n), hp(h), attack(a) {}
+};
+
+void ClearScreen() {
+	HANDLE hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	DWORD count;
+	DWORD cellCount;
+	COORD homeCoords = { 0, 0 };
+	if (hStdOut == INVALID_HANDLE_VALUE) return;
+	if (!GetConsoleScreenBufferInfo(hStdOut, &csbi)) return;
+	cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+	if (!FillConsoleOutputCharacter(hStdOut, (TCHAR)' ', cellCount, homeCoords, &count)) return;
+	if (!FillConsoleOutputAttribute(hStdOut, csbi.wAttributes, cellCount, homeCoords, &count)) return;
+	SetConsoleCursorPosition(hStdOut, homeCoords);
+}
+
+void SetColor(int color) {
+	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+	SetConsoleTextAttribute(hConsole, color);
+}
+
+void ChooseAction(bool& u_attack, bool& u_block) {
+	SetColor(9);
+	cout << "Choose an action (Choose 1 or 2 on keyboard):" << endl;
+	SetColor(7);
+	cout << "1. Attack" << endl;
+	cout << "2. Block" << endl;
+	bool correct_input = true;
+	int flag = 0;
+	if (_kbhit()) {
+		do {
+			char ch = _getch();
+			if (ch != '1' && ch != '2') {
+				cout << "Choose only 1 or 2" << endl;
+				correct_input = false;
+			}
+			else {
+				correct_input = true;
+				if (ch == '1') flag = 1;
+				if (ch == '2') flag = 2;
+			}
+		} while (!correct_input);
+	}
+	if (flag == 1) u_attack = true;
+	if (flag == 2) u_block = true;
+	cout << endl;
+}
+
+void CheckDamage(int& true_damage) {
+	int damage = 10 + rand() % 6;
+	int critical_strike_chance = rand() % 10 + 1;
+	if (critical_strike_chance > 8) {
+		damage *= 2;
+		cout << "Critical hit! Damage: " << damage << endl;
+	}
+	true_damage = damage;
+}
+
+void CheckCounterAttack(bool& counter_attack, int& true_damage, bool u_block, bool enem_block) {
+	int counterattack_chance = 6;
+	int randomed_counterattack_chance = rand() % 10 + 1;
+	 if (randomed_counterattack_chance > 6 && u_block || enem_block) {
+		counter_attack = true;
+		CheckDamage(true_damage);
+	 }
+}
+
+void UpdateHp(vector<Character>& players, int& true_damage, bool& enem_block, bool& u_block, bool enem_attack, bool u_attack) {
+	if (u_block && enem_attack) {
+		players[1].hp -= true_damage;
+		if (players[1].hp < 0) {
+			players[1].hp = 0;
+		}
+		cout << "Enemy received damage: " << true_damage << ", remaining HP: " << players[1].hp << endl;
+	}
+	if (enem_block && u_attack) {
+		players[0].hp -= true_damage;
+		if (players[0].hp < 0) {
+			players[0].hp = 0;
+		}
+		cout << "You received damage: " << true_damage << ", remaining HP: " << players[0].hp << endl;
+	}
+	if (u_attack && enem_attack) {
+		players[0].hp -= true_damage;
+		if (players[0].hp < 0) {
+			players[0].hp = 0;
+		}
+		cout << "You received damage: " << true_damage << ", remaining HP: " << players[0].hp << endl;
+		CheckDamage(true_damage);
+		players[1].hp -= true_damage;
+		if (players[1].hp < 0) {
+			players[1].hp = 0;
+		}
+		cout << "Enemy received damage: " << true_damage << ", remaining HP: " << players[1].hp << endl;
+	}
+}
+
+void GameOver(bool& victory, bool& defeat) {
+	if (victory && defeat) {
+		cout << "Draw! Both of you have 0 HP" << endl;
+	}
+	else if (victory) {
+		cout << "You are victory! Enemy has 0 hp" << endl;
+	}
+	else if (defeat) {
+		cout << "You are lose! -_- you have 0 hp" << endl;
+	}
+}
+
+void CheckGameStatus(vector<Character> players, bool& victory, bool& defeat, bool& end) {
+	if (players[1].hp <= 0 && players[0].hp <= 0) {
+		players[1].hp = 0;
+		players[0].hp = 0;
+		victory = true;
+		defeat = true;
+		end = true;
+		GameOver(victory, defeat);
+	}
+	else if (players[1].hp <= 0) {
+		players[1].hp = 0;
+		victory = true;
+		end = true;
+		GameOver(victory, defeat);
+	}
+	else if (players[0].hp <= 0) {
+		players[0].hp = 0;
+		defeat = true;
+		end = true;
+		GameOver(victory, defeat);
+	}
+}
+
+void CheckRound() {
+	static int count = 1;
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	int columns; GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+	columns = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+	int left = 0;
+	int right = 0;
+	// Calculation of the right and left boundary
+	if (count < 10) {
+		left = (columns - 8) / 2;
+		right = (columns - 8) / 2;
+	}
+	else if (count >= 10) {
+		left = (columns - 9) / 2;
+		right = ((columns - 9) / 2) + 1;
+	}
+	// Left
+	for (size_t i = 0; i < left; i++) {
+		cout << "-";
+	}
+	cout << "ROUND: " << count;
+	// Right
+	for (size_t i = 0; i < right; i++) {
+		cout << "-";
+	}
+	// Indentations
+	for (size_t i = 0; i < 4; i++) {
+		cout << endl;
+	}
+	count++;
+}
+
+void ResetStats(bool& enem_block, bool& u_block, bool& u_attack, bool& enem_attack, bool& counter_attack) {
+	enem_attack = false;
+	enem_block = false;
+	u_attack = false;
+	u_block = false;
+	counter_attack = false;
+}
+
+// AI
+void AI(vector<Character> players, bool& enem_block, bool& enem_attack) {
+	int chance = rand() % 10 + 1;
+	if (chance >= 1 && chance <= 7 && players[1].hp > 50) enem_attack = true;
+	if (chance >= 1 && chance <= 6 && players[1].hp < 50) enem_block = true;
+	// if (chance >= 7 && players[1].hp > 75) enem_attack = true;
+	if (!enem_block && !enem_attack) {
+		enem_attack = (rand() % 2 == 0);
+		enem_block = !enem_attack;
+	}
+}
+
+void Game() {
+	bool end = false;
+	srand(time(0));
+	do {
+		// Initialization
+		Character u("You", 100, 10);
+		Character enem("Enemy", 100, 10);
+		int true_damage = 0;
+		bool enem_block = false;
+		bool u_block = false;
+		bool u_attack = false;
+		bool enem_attack = false;
+		char end_answer = '-';
+		bool victory = false;
+		bool defeat = false;
+		bool counter_attack = false;
+		vector<Character> players{ u, enem };
+
+		// Stats
+		cout << "Your hp: " << players[0].hp << ", Attack: 10 - 15" << endl;
+		cout << "Your enemy hp: " << players[1].hp << ", Attack: 10 - 15" << endl;
+		cout << "Chance for counterattack: 40%" << endl;
+		cout << "Chance for critical strike: 20%" << endl;
+
+		// Waiting for press any key
+		SetColor(10);
+		cout << "Press any key to continue..." << endl;
+		SetColor(7);
+		do {
+			if (_kbhit()) {
+				// Start
+				CheckRound();
+				ChooseAction(u_attack, u_block);
+				AI(players, enem_block, enem_attack);
+				if (enem_block) cout << "Enemy choose to block" << endl;
+				if (enem_attack) cout << "Enemy choose to attack" << endl;
+				if (u_attack && enem_attack) {
+					CheckDamage(true_damage);
+					UpdateHp(players, true_damage, enem_block, u_block, enem_attack, u_attack);
+					cout << "Both you and the opponent attacking" << endl;
+					CheckGameStatus(players, victory, defeat, end);
+					if (victory || defeat) break;
+					SetColor(9);
+					cout << "Press any key to continue... (pressing 1 or 2 will select an action)" << endl;
+					SetColor(7);
+				}
+				// If you attack but enemy do not
+				else if (u_attack && enem_block) {
+					CheckCounterAttack(counter_attack, true_damage, u_block, enem_block);
+					UpdateHp(players, true_damage, enem_block, u_block, enem_attack, u_attack);
+					cout << "You attack into the block" << endl;
+					if (counter_attack) cout << "Enemy is counterattacking you" << endl;
+					CheckGameStatus(players, victory, defeat, end);
+					if (victory || defeat) break;
+					SetColor(9);
+					cout << "Press any key to continue... (pressing 1 or 2 will select an action)" << endl;
+					SetColor(7);
+				}
+				// If you block and enemy attacking
+				else if (u_block && enem_attack) {
+					CheckCounterAttack(counter_attack, true_damage, u_block, enem_block);
+					UpdateHp(players, true_damage, enem_block, u_block, enem_attack, u_attack);
+					cout << "Enemy attacks you in the block" << endl;
+					if (counter_attack) cout << "You are counterattacking enemy" << endl;
+					CheckGameStatus(players, victory, defeat, end);
+					if (victory || defeat) break;
+					SetColor(9);
+					cout << "Press any key to continue... (pressing 1 or 2 will select an action)" << endl;
+					SetColor(7);
+				}
+				// If both of you are blocking
+				else if (u_block && enem_block) {
+					cout << "Both you and the enemy chose to block" << endl;
+					Sleep(800);
+					if (victory || defeat) break;
+					SetColor(9);
+					cout << "Press any key to continue... (pressing 1 or 2 will select an action)" << endl;
+					SetColor(7);
+				}
+				// Reset bools (block, attack, counterattack)
+				ResetStats(enem_block, u_block, u_attack, enem_attack, counter_attack);
+				true_damage = 0;
+			}
+		} while (!victory || !defeat);
+
+		// Play again
+		cout << "Do you want to play again? (enter 1 for 'Yes' or 2 for 'No')" << endl;
+		bool correct_input = false;
+		do {
+			if (_kbhit()) {
+				end_answer = _getch();
+				if (!(end_answer == '1' || end_answer == '2')) {
+					cout << "Choose only 1 or 2" << endl;
+				}
+				else {
+					correct_input = true;
+				}
+			}
+		} while (!correct_input);
+		if (end_answer == '1') {
+			ClearScreen();
+			Game();
+		}
+		else if (end_answer == '2') {
+			end = true;
+			cout << "Farewell" << endl;
+		}
+	} while (!end);
+}
+
+int main() {
+	Game();
+	return 0;
+}
